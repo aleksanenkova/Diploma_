@@ -1,0 +1,10 @@
+
+CREATE TABLE IF NOT EXISTS chats (
+  id BIGSERIAL PRIMARY KEY,
+
+  uid BIGINT NOT NULL UNIQUE,
+  state JSONB DEFAULT '{}'::jsonb,
+
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+)
