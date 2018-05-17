@@ -1,0 +1,12 @@
+{
+  "db": {
+    "name": "auto_bot",
+    "ip": "127.0.0.1",
+    "login": "postgres",
+    "password": "123123",
+    "port": 5432
+  },
+  "vk": {
+    "token": "cae8397fffae09d2a8d67a0befde94b21774b3a05fff2f651d8da4126bc4a12179c31569b7e5ef9d14c41"
+  }
+}
