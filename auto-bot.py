@@ -8,24 +8,21 @@ import traceback
 import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
 
-
 class ChatResponder:
+    
+    #    from reply1 import stage_reply1
     def __init__(self):
         pass
     
-    #  def stage_start(self, state, message):
-    #      state['stage'] = 'reply1'
-    # if message.lower() != u'старт':
-    #     state['stage'] = 'reply'
-    #           return state, "START: Go to reply"
-    #return state, 'START: Какая марка?'
     
+    Brand = ''
     
     def stage_reply1(self, state, message):
         Brand = DB.getBrand(message)
         if Brand is not None:
-            str = "Окей, у вас %s \n\nВыберите тип вопроса \n\n1. Поиск детали \n2. Вопрос по ремонту \n3. Обслуживание" % Brand
+            str = "Окей, у вас %s" % Brand
             state['stage'] = 'reply2'
+            DB.updateBrand(userid, Brand)
         else:
             str = "Не удалось распознать марку автомобиля"
             state['stage'] = 'reply1'
@@ -51,12 +48,27 @@ class ChatResponder:
             return state, "Сделайте свой выбор поворно"
 
 
-def proxy(self, state, message):
-    
-    if message.lower() == u'старт':
+def stage_reply3(self, state, message):
+    str = "https://www.emex.ru/f?detailNum=%s" % message
         state['stage'] = 'reply1'
-        return state, 'Какая марка?'
+        return state, str
+
+
+
+    def proxy(self, state, message):
         
+        if message.lower() == u'старт':
+            if DB.getUserBrand(userid) is None:
+                state['stage'] = 'reply2'
+                return state, "Выберите тип вопроса \n\n1. Поиск детали \n2. Вопрос по ремонту \n3. Обслуживание \n4. ТО"
+            else:
+                state['stage'] = 'reply1'
+            return state, 'Какая марка?'
+        
+        if (message.lower() == u'сменить автомобиль') or (message.lower() == u'сменить авто') or (message.lower() == u'поменять автомобиль') or (message.lower() == u'поменять авто') or (message.lower() == u'сменить машину') or (message.lower() == u'сменить тачку') or (message.lower() == u'поменять машину') or (message.lower() == u'поменять тачку') or (message.lower() == u'поменять') or (message.lower() == u'сменить'):
+            state['stage'] = 'reply1'
+            return state, 'Какая марка?'
+    
         
         if 'stage' in state:
             
@@ -64,8 +76,11 @@ def proxy(self, state, message):
                 return self.stage_reply1(state, message)
             if state['stage'] == 'reply2':
                 return self.stage_reply2(state, message)
+            if state['stage'] == 'reply3':
+                return self.stage_reply3(state, message)
+
         state['stage'] = 'start'
-        return state, "Undefined stage. Go to stage start"
+                    return state, "Undefined stage. Go to stage start"
 
 
 def handler(chat_state, message):
@@ -82,7 +97,7 @@ class DBLayer:
     def getState(self, uid):
         with self._db.cursor() as cursor:
             cursor.execute("""
-                SELECT state FROM chats WHERE uid = %s LIMIT 1
+                SELECT state FROM chats1 WHERE uid = %s LIMIT 1
                 """, [uid])
             
             if cursor.rowcount == 1:
@@ -93,6 +108,23 @@ class DBLayer:
     
     
     return None
+def getUserBrand(self, uid):
+    with self._db.cursor() as cursor:
+        cursor.execute("""
+            SELECT user_brand FROM chats1 WHERE uid = %s LIMIT 1
+            """, [uid])
+        
+        if cursor.rowcount == 1:
+            state, = cursor.fetchone()
+            if state == 'null':
+                return None
+                else:
+                    return state
+        else:
+            return None
+        
+        
+                        return None
 
 def getBrand(self, message):
     with self._db.cursor() as cursor:
@@ -110,12 +142,22 @@ def getBrand(self, message):
 def updateState(self, uid, new_state):
     with self._db.cursor() as cursor:
         cursor.execute("""
-            INSERT INTO chats (uid, state) VALUES (%(uid)s, %(new_state)s)
+            INSERT INTO chats1 (uid, state) VALUES (%(uid)s, %(new_state)s)
             ON CONFLICT (uid)
             DO UPDATE
             SET state = %(new_state)s,
             updated_at = now()
             """, {'uid': uid, 'new_state': json.dumps(new_state)})
+    
+    def updateBrand(self, uid, new_brand):
+        with self._db.cursor() as cursor:
+            cursor.execute("""
+                INSERT INTO chats1 (uid, user_brand) VALUES (%(uid)s, %(new_brand)s)
+                ON CONFLICT (uid)
+                DO UPDATE
+                SET user_brand = %(new_brand)s,
+                updated_at = now()
+                """, {'uid': uid, 'new_brand' : new_brand})
 
 
 def main(DB, message_handle):
@@ -132,6 +174,7 @@ def main(DB, message_handle):
                 print('Start message handling')
                 print('{}: "{}"'.format(event.user_id, event.text), end=' ')
                 
+                userid = event.user_id
                 current_state = DB.getState(event.user_id)
                 new_chat_state, response = message_handle(current_state, event.text)
                 DB.updateState(event.user_id, new_chat_state)
@@ -146,6 +189,7 @@ def main(DB, message_handle):
 
 
 if __name__ == '__main__':
+    userid = 1
     conf_path = sys.argv[1]
     
     config = None
@@ -159,3 +203,5 @@ if __name__ == '__main__':
         
         DB = DBLayer(db)
         main(DB, handler)
+
+
